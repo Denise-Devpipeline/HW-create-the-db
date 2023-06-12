@@ -31,17 +31,27 @@ def create_all():
         active smallint
      );
        """)
-    print("Creating Tables...")
+
+    cursor.execute("""
+      CREATE TABLE IF NOT EXISTS UsersOrganizationsXref (
+        user_id INT,
+        org_id INT,
+        FOREIGN KEY(user_id) REFERENCES(Users(user_id),
+        FOREIGN KEY(org_id)REFERENCES Organizations(org_id),
+        PRIMARY KEY(user_id, org_id)
+        );
+    
+      """)
+
     conn.commit()
+    print("Creating Tables...")
 
 
 app = Flask(__name__)
 
-# Route to Add User to Database
 
-
-@app.route('/user/add', methods=['POST'])
-def user_add():
+@app.route('/user/create', methods=['POST'])
+def user_create():
     post_data = request.form if request.form else request.get_json
     first_name = post_data.get('first_name')
     last_name = post_data.get('last_name')
@@ -53,7 +63,7 @@ def user_add():
     active = post_data.get('active')
 
     cursor.execute(
-        "INSTERT INTO USERS (first_name, last_name, email, phone, city, state, org_id, active) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", [first_name, last_name, email, phone, city, state, org_id, active])
+        "INSERT INTO USERS (first_name, last_name, email, phone, city, state, org_id, active) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", [first_name, last_name, email, phone, city, state, org_id, active])
     conn.commit()
     return jsonify("User created"), 201
 
@@ -84,7 +94,7 @@ def all_active_users():
 
 
 @app.route('/users/<id>', methods=['GET'])
-def get_user_by_id():
+def get_user_by_id(id):
     cursor.execute("SELECT user_id, first_name, last_name, email, phone, city, state, org_id, active FROM Users WHERE user_id=%s;",
                    [id])
     result = cursor.fetchone()
@@ -167,6 +177,13 @@ def user_update_by_id(id):
                        result_dict['active']])
     conn.commit()
     return jsonify("User updated.")
+
+
+@app.route('/use/delete/<id>', methods=["DELETE"])
+def delete_user(id):
+    cursor.execute("DELETE FROM Users WHERE user_id = %s", [id])
+    conn.commit()
+    return jsonify("User Delete!"), 200
 
 
 if __name__ == "__main__":
