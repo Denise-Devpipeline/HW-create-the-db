@@ -1,27 +1,8 @@
-import psycopg2
-
 from flask import Flask, request, jsonify
-
-conn = psycopg2.connect(
-    "dbname='Organizations' org='denisejustice' host='localhost'")
-cursor = conn.cursor()
+from conn import *
 
 
 def create_all():
-    cursor.execute(""" 
-      CREATE TABLE IF NOT EXISTS orgs (
-         org_id SERIAL PRIMARY KEY,
-         first_name VARCHAR NOT NULL,
-         last_name VARCHAR,
-         email VARCHAR NOT NULL UNIQUE, 
-         phone VARCHAR,
-         city VARCHAR,
-         state VARCHAR,
-         org_id int,
-         active smallint DEFAULT 1
-      );
-   """)
-
     cursor.execute("""
      CREATE TABLE IF NOT EXISTS Organizations (
         org_id SERIAL PRIMARY KEY,
@@ -34,14 +15,14 @@ def create_all():
        """)
 
     cursor.execute("""
-      CREATE TABLE IF NOT EXISTS orgsOrganizationsXref (
+      CREATE TABLE IF NOT EXISTS UsersOrganizationsXref (
+        user_id INT,
         org_id INT,
-        org_id INT,
-        FOREIGN KEY(org_id) REFERENCES(orgs(org_id),
+        FOREIGN KEY(user_id) REFERENCES(Users(user_id),
         FOREIGN KEY(org_id)REFERENCES Organizations(org_id),
-        PRIMARY KEY(org_id, org_id)
+        PRIMARY KEY(user_id, org_id)
         );
-    
+
       """)
 
     conn.commit()
@@ -64,7 +45,7 @@ def org_create():
         """INSERT INTO ORGANIZATIONS (name, phone, city, state, active) VALUES (%s,%s,%s,%s,%s)""", [name, phone, city, state, active])
     org_id = cursor.fetchone()[0]
     conn.commit()
-    return jsonify({"Organization created": org_id}),  201
+    return jsonify({"Organization Created": org_id}),  201
 
 
 @app.route('/all-active-orgs', methods=["GET"])
@@ -170,13 +151,8 @@ def org_update_by_id(org_id):
     return jsonify("Organization Updated!")
 
 
-@app.route('/use/delete/<org_id>', methods=["DELETE"])
+@app.route('/org/delete/<org_id>', methods=["DELETE"])
 def delete_org(org_id):
     cursor.execute("DELETE FROM Organizations WHERE org_id = %s", [org_id])
     conn.commit()
     return jsonify("Organization Deleted!"), 200
-
-
-if __name__ == "__main__":
-    create_all()  # run tables
-    app.run(port="8086", host="0.0.0.0", debug=True)  # runs flask

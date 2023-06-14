@@ -1,58 +1,8 @@
-import psycopg2
-
 from flask import Flask, request, jsonify
-
-conn = psycopg2.connect("dbname='Users' user='denisejustice' host='localhost'")
-cursor = conn.cursor()
+from conn import *
 
 
-def create_all():
-    cursor.execute(""" 
-      CREATE TABLE IF NOT EXISTS Users (
-         user_id SERIAL PRIMARY KEY,
-         first_name VARCHAR NOT NULL,
-         last_name VARCHAR,
-         email VARCHAR NOT NULL UNIQUE, 
-         phone VARCHAR,
-         city VARCHAR,
-         state VARCHAR,
-         org_id int,
-         active smallint DEFAULT 1
-      );
-   """)
-
-    cursor.execute("""
-     CREATE TABLE IF NOT EXISTS Organizations (
-        org_id SERIAL PRIMARY KEY,
-        name VARCHAR NOT NULL,
-        phone VARCHAR,
-        city VARCHAR,
-        state VARCHAR,
-        active smallint
-     );
-       """)
-
-    cursor.execute("""
-      CREATE TABLE IF NOT EXISTS UsersOrganizationsXref (
-        user_id INT,
-        org_id INT,
-        FOREIGN KEY(user_id) REFERENCES(Users(user_id),
-        FOREIGN KEY(org_id)REFERENCES Organizations(org_id),
-        PRIMARY KEY(user_id, org_id)
-        );
-    
-      """)
-
-    conn.commit()
-    print("Creating Tables...")
-
-
-app = Flask(__name__)
-
-
-@app.route('/user/create', methods=['POST'])
-def user_create():
-    post_data = request.form if request.form else request.get_json
+def user_create(post_data):
     first_name = post_data.get('first_name')
     last_name = post_data.get('last_name')
     email = post_data.get('email')
@@ -68,9 +18,7 @@ def user_create():
     return jsonify("User created"), 201
 
 
-@app.route('/all-active-users', methods=["GET"])
 def all_active_users():
-    # why wouldn't this work?
     cursor.execute("SELECT * FROM Users WHERE active =1")
     results = cursor.fetchall()
     if not results:
@@ -93,7 +41,6 @@ def all_active_users():
         return jsonify(active_users_result), 200
 
 
-@app.route('/users/<id>', methods=['GET'])
 def get_user_by_id(id):
     cursor.execute("SELECT user_id, first_name, last_name, email, phone, city, state, org_id, active FROM Users WHERE user_id=%s;",
                    [id])
@@ -115,22 +62,19 @@ def get_user_by_id(id):
         return jsonify(results_dict), 200
 
 
-@app.route('/user/activate/<id>', methods=["PATCH"])
 def activate_user(id):
     cursor.execute("UPDATE Users SET active = 1 WHERE user_id = %s", [id])
     conn.commit()
     return jsonify("User Activated!"), 200
 
 
-@app.route('/user/deactivated/<id>', methods=["PATCH"])
 def deactivate_user(id):
     cursor.execute("UPDATE Users SET active = 0 WHERE user_id = %s", [id])
     conn.commit()
     return jsonify("User Deactivated!"), 200
 
 
-@app.route('/user/update/<id>', methods=["PUT"])
-def user_update_by_id(id):
+def user_update_by_id(id, post_data):
     cursor.execute("SELECT user_id, first_name, last_name, email, phone, city, state, org_id, active FROM Users WHERE user_id=%s;",
                    [id])
     result = cursor.fetchone()
@@ -148,14 +92,13 @@ def user_update_by_id(id):
             'orig_id': result[7],
             'active': result[8]
         }
-    post_data = request.form if request.form else request.json
 
     for key, val in post_data.copy().items():
         if not val:
             post_data.pop(key)
     result_dict.update(post_data)
 
-    cursor.execute('''UPDATE Users SET 
+    cursor.execute('''UPDATE Users SET
     first_name = %s,
     last_name = %s,
     email = %s,
@@ -179,13 +122,7 @@ def user_update_by_id(id):
     return jsonify("User updated.")
 
 
-@app.route('/use/delete/<id>', methods=["DELETE"])
 def delete_user(id):
     cursor.execute("DELETE FROM Users WHERE user_id = %s", [id])
     conn.commit()
     return jsonify("User Delete!"), 200
-
-
-if __name__ == "__main__":
-    create_all()  # run tables
-    app.run(port="8086", host="0.0.0.0", debug=True)  # runs flask
