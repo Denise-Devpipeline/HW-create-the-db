@@ -3,7 +3,7 @@ from conn import *
 
 
 def user_create(post_data):
-    first_name = post_data.get('first_name')
+    first_name = post_data['first_name']
     last_name = post_data.get('last_name')
     email = post_data.get('email')
     phone = post_data.get('phone')
